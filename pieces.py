@@ -48,10 +48,9 @@ class piece():
           valid_moves = self.check_valid(piece_list)[0]
           capture_moves= self.check_valid(piece_list)[1]
           temp_valid_moves = valid_moves.copy()
-          temp_piece_list = piece_list.copy()
           for move in temp_valid_moves:
                illegal_move = False
-               undo_data = self.make_move(temp_piece_list,current_pos,move)
+               undo_data = self.make_move(piece_list,current_pos,move)
                for row in piece_list:
                     if illegal_move:
                          break
@@ -59,29 +58,30 @@ class piece():
                          if square != "" :
                               temp_piece = square
                               if temp_piece.color != self.color:
-                                   attacking_square = temp_piece.check_valid(temp_piece_list)[0]
+                                   attacking_square = temp_piece.check_valid(piece_list)[0]
                                    kings_pos = self.get_king_pos()
+                                   print("the white king ",kings_pos)
                                    if kings_pos in attacking_square:
-                                             print(f"the move is {move}")
-                                             print(f"the valid moves are {valid_moves}")
                                              valid_moves.remove(move)
                                              illegal_move = True
                                              break
-               self.undo_move(temp_piece_list,undo_data)
+               self.undo_move(piece_list,undo_data)
           
           return valid_moves,capture_moves
      def make_move(self,board,form_pos,to_pos):
             selected_piece = board[form_pos[0]][form_pos[1]]
             captured =  board[to_pos[0]][to_pos[1]]
+            prev_state = {"from_pos":form_pos,
+                  "to_pos": to_pos,
+                  "piece":selected_piece,
+                  "captured":captured,
+                  "white_king_pos" : piece.white_king_pos,
+                  "black_king_pos" : piece.black_king_pos}
             if self.name == "king":
                  if self.color =="white":
                       piece.white_king_pos = to_pos
                  else:
                      piece.black_king_pos = to_pos
-            prev_state = {"from_pos":form_pos,
-                  "to_pos": to_pos,
-                  "piece":selected_piece,
-                  "captured":captured}
             # change the X Y data of the piece
             selected_piece.x = to_pos[0]
             selected_piece.y = to_pos[1]
@@ -92,11 +92,13 @@ class piece():
           undo_square = prev_state["captured"]
           to_pos = prev_state["to_pos"]
           form_pos = prev_state["from_pos"]
-          piece = prev_state["piece"]
-          piece.x = form_pos[0]
-          piece.y = form_pos[1]
+          moved_piece = prev_state["piece"]
+          moved_piece.x = form_pos[0]
+          moved_piece.y = form_pos[1]
+          piece.black_king_pos = prev_state["black_king_pos"]
+          piece.white_king_pos = prev_state["white_king_pos"]
           board[to_pos[0]][to_pos[1]] = undo_square
-          board[form_pos[0]][form_pos[1]] =piece
+          board[form_pos[0]][form_pos[1]] =moved_piece
 class pawn(piece):
      def __init__(self,color,x,y,directory):
           self.first_move_done = False
