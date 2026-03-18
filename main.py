@@ -107,7 +107,6 @@ def draw_valid_moves(valid_moves):
         pygame.draw.circle(screen,"red",(i[0]*square_size+square_size//2,(i[1]+1)*square_size+square_size//2),15)
 def handle_incoming_msgs(n):
     if n.incoming_msg:
-        print(n.incoming_msg)
         msg = n.incoming_msg.pop()
         print(f"the massge {msg.type}")
         if msg.type == "BOARD":
@@ -128,7 +127,12 @@ def handle_incoming_msgs(n):
             print(msg.content)
 
             menu_page.update_for_challenge(msg.sender,msg.content)
-board = n.board
+
+        if msg.type == "GAME_STARTED":
+             n.board = msg.content[0]
+             n.color = msg.content[1]
+             global game_started
+             game_started = True
 #load_pieces(board)
 valid_moves = []
 undo = Button("undo_move",400,0)
@@ -140,29 +144,30 @@ class game_screen():
         self.selected_piece = None
         self.board = board
     def handle_game_click(self):
-            if mouse_pos[0] in range(8) and mouse_pos[1] in range(8):
-                print(mouse_pos)
-                if mouse_pos in self.valid_moves:
-                    msg = massage("MAKE_MOVE",(mouse_pos,self.selected_piece))
-                    reply = n.send(msg)
-                    if reply.type == "MADE_MOVE":
-                        print("move should have been made")
-                        self.board = reply.content
+            if self.board:
+                if mouse_pos[0] in range(8) and mouse_pos[1] in range(8):
+                    print(mouse_pos)
+                    if mouse_pos in self.valid_moves:
+                        msg = massage("MAKE_MOVE",(mouse_pos,self.selected_piece))
+                        reply = n.send(msg)
+                        if reply.type == "MADE_MOVE":
+                            print("move should have been made")
+                            self.board = reply.content
+                            self.valid_moves = []
+                            self.selected_piece = None
+                    elif self.board[mouse_pos[0]][ mouse_pos[1]] != "":
+                        Piece =  self.board[mouse_pos[0]][ mouse_pos[1]]
+                        if Piece.color == n.color:
+                            msg = massage("VALID_GET",mouse_pos)
+                            reply = n.send(msg)
+                            if reply.type == "VALID_SEND":
+                                print(reply.content)
+                                self.valid_moves = reply.content
+                                draw_valid_moves(reply.content)
+                                self.selected_piece = mouse_pos
+                    else:
                         self.valid_moves = []
                         self.selected_piece = None
-                elif self.board[mouse_pos[0]][ mouse_pos[1]] != "":
-                    Piece =  self.board[mouse_pos[0]][ mouse_pos[1]]
-                    if Piece.color == n.color:
-                        msg = massage("VALID_GET",mouse_pos)
-                        reply = n.send(msg)
-                        if reply.type == "VALID_SEND":
-                            print(reply.content)
-                            self.valid_moves = reply.content
-                            draw_valid_moves(reply.content)
-                            self.selected_piece = mouse_pos
-                else:
-                    self.valid_moves = []
-                    self.selected_piece = None
     def check_undo_button(self):
             if undo.Check_clicked():
                  print(self.selected_piece,self.valid_moves)
@@ -179,6 +184,7 @@ class game_screen():
                     pygame.draw.rect(screen,white_square_color,(Colum*square_size,row*square_size,square_size,square_size))
     def draw(self):
         self.draw_board()
+        load_pieces(self.board)
         draw_pieces(self.board)
         undo.draw()
         if self.valid_moves:
@@ -201,7 +207,7 @@ class menu():
              checking = i.challenge_button.is_clicked()
              if checking:
                  if i.challenged:
-                     n.send_only(massage("ACCEPTED",i.game_id))
+                     n.send_only(massage("ACCEPTED_CHALLENGE",i.game_id))
                  else:
                     print(username)
                     n.send_only(massage("GAME?",f"{i.name}",sender=username))
@@ -213,7 +219,7 @@ class menu():
             new_challenge_box = challenge_box(screen,200,200,opp_name,True)
             new_challenge_box.game_id = game_id
             self.boxes.append(new_challenge_box)
-game = game_screen(board)
+game =None
 game_started = False
 logging_in = True
 logging_page = AuthPage(200,200)
@@ -225,6 +231,9 @@ while run:
     screen.fill("black")
     handle_incoming_msgs(n)
     if game_started:
+        if not game:
+             game = game_screen(n.board)
+
         game.draw()
     elif logging_in:
         logging_page.draw(screen)

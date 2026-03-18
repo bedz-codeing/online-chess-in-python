@@ -30,16 +30,6 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT
 )
 """)
-
-
-class game():
-    def __init__(self):
-        self.players = []
-    def add_member(self,player):
-          self.players.append(player)
-    def send_board(self,msg):
-        for conn in self.players:
-             conn.send(pickle.dumps(msg))
 board[2][3] = queen("white",2,3,"chess pieces/white_qween.png")
 board[2][2] = king("white",2,2,"chess pieces/white_king.png")
 
@@ -55,17 +45,31 @@ class game():
      def __init__(self,p1,p2):
           #this class is makes it possible to send board to more than 1 player
           # it takes the player as (connection and addr) FOR NOW TODO change it
-          self.clients = [p1[0],p2[0]]
+          self.clients = [p1,p2]
           self.board =  []
+          self.color = {p1:"white",p2:"black"}
           for i in range(8):
               row = []
               for j in range(8):
                   row.append("")
-              board.append(row)
-     def send_board(self,board):
+              self.board.append(row)
+
+          self.board[2][3] = queen("white",2,3,"chess pieces/white_qween.png")
+          self.board[2][2] = king("white",2,2,"chess pieces/white_king.png")
+
+          self.board[3][2] = queen("black",3,2,"chess pieces/black_queen.png")
+
+          self.board[2][5] = queen("black",2,5,"chess pieces/black_queen.png")
+          self.board[3][5] = king("black",3,5,"chess pieces/black_king.png")
+
+     def send_board(self):
           for c in self.clients:
-               c.send(pickle.dumps(massage("BOARD",board)))
-         
+              # c.send(pickle.dumps(massage("BOARD",self.board)))
+               c.send(pickle.dumps(massage("GAME_STARTED",(self.board,self.color[c]))))
+                
+     def send_info(self,msg):
+        for c in self.clients:
+             c.send(pickle.dumps(msg))
 def Valid_moves_request(data,board):
         piece_pos = data.content
         piece = board[piece_pos[0]][piece_pos[1]]
@@ -97,10 +101,13 @@ def send_play_request(client,opponent,opp_name,sender):
 def accept_request(id):
      data =pending_challenges[id]
      opp = data["opponent"]
-     challenger = ["sender"]
-     #new_game = game(challenger,opp)
+     challenger = data["sender"]
+     new_game = game(challenger,opp)
      print(f"{challenger} challenges {opp} to a chess game !!!!")
-    # del pending_challenges[id]
+     del pending_challenges[id]
+     new_game.send_board()
+
+
 def type_access(client):
      # the access data comes as the from n.send_only(massage(f"{action}",(username, password)))
      logging = True
@@ -111,6 +118,8 @@ def type_access(client):
              logging= verify_user(client,msg.content)
          elif msg.type == "CREATE":
               logging=crating_account(client,msg.content)
+
+              
 
 def verify_user(client,info):
      conn = sqlite3.connect("DATABASE.db")
@@ -168,8 +177,9 @@ def handle_menu(conn,name):
                if data.type =="GAME?":
                 opp = connected[data.content]
                 send_play_request(conn,opp,data.content,data.sender)
-               elif data.type == "ACCEPTED":
+               elif data.type == "ACCEPTED_CHALLENGE":
                     accept_request(data.content)
+
      except Exception as e:
         print("the exp",e)          
 def handle_threaded_game(conn,game_id):
