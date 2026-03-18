@@ -49,7 +49,7 @@ board[2][5] = queen("black",2,5,"chess pieces/black_queen.png")
 board[3][5] = king("black",3,5,"chess pieces/black_king.png")
 
 
-connected = []
+connected = {}
 pending_challenges = {}
 class game():
      def __init__(self,p1,p2):
@@ -84,7 +84,7 @@ def Undo_move_request(last_move,last_played_piece,board):
         last_played_piece.undo_move(board,last_move)
         return None,None
       
-def send_play_request(client,opponent):
+def send_play_request(client,opponent,opp_name,sender):
      #this func makes a temp challenge in a dict and sends the id to the player so if he accepts/decline i can find it
      challenge_id = str(uuid.uuid4())[:5]
      print(challenge_id)
@@ -92,13 +92,14 @@ def send_play_request(client,opponent):
           "opponent":opponent,
           "sender": client
      }
-     opponent.pickle.dumps(massage("GAME?",challenge_id))
+     print(sender)
+     opponent.send(pickle.dumps(massage("GAME?",challenge_id,opp_name,sender)))
 def accept_request(id):
      data =pending_challenges[id]
      opp = data["opponent"]
      challenger = ["sender"]
      #new_game = game(challenger,opp)
-
+     print(f"{challenger} challenges {opp} to a chess game !!!!")
     # del pending_challenges[id]
 def type_access(client):
      # the access data comes as the from n.send_only(massage(f"{action}",(username, password)))
@@ -128,7 +129,7 @@ def verify_user(client,info):
            print(f"the user {name} has connected ")
            verifying = False
            connected[name] = client
-           handle_threaded_game(client)
+           handle_menu(client,name)
            return False
         else:
               client.send(pickle.dumps(massage("INVALID",None)))
@@ -143,7 +144,35 @@ def crating_account(client,info):
             "SELECT 1 FROM users WHERE username = ?",
             (name,)
         )
-def handle_threaded_game(conn,new_game):
+    exists = cursor.fetchone()
+    if not exists:
+               client.send("ACC".encode())
+               crating = False
+               connected[name] = client
+               cursor.execute("INSERT INTO users (username, password)VALUES (?, ?) ",(name,password))
+               conn.commit()
+               print(f"the NEW user {name} has connected ")
+               
+    else:
+            client.send("TAKEN".encode())
+
+def handle_menu(conn,name):
+     connected_p = list(connected.keys())
+     connected_p.remove(name)
+     print(connected_p)
+     conn.send(pickle.dumps(massage("LIST OF PLAYER",connected_p)))
+     try:
+          while True:
+               data =pickle.loads(conn.recv(2048))
+               print(data.type)
+               if data.type =="GAME?":
+                opp = connected[data.content]
+                send_play_request(conn,opp,data.content,data.sender)
+               elif data.type == "ACCEPTED":
+                    accept_request(data.content)
+     except Exception as e:
+        print("the exp",e)          
+def handle_threaded_game(conn,game_id):
     conn.send(pickle.dumps(board))
     conn.send(pickle.dumps("white"))
     last_played_piece = None
@@ -178,9 +207,6 @@ def handle_threaded_game(conn,new_game):
                            else:
                                  msg = massage("nothing to undo",None)
                                  conn.send(pickle.dumps(msg))
-                   elif data.type =="GAME?":
-                        rands = ["test test ttttttest",1234,3333,"ITS THE MAN HIM SELF BADRRRRRRRRR","NOTHING BUT A BUETFAL MOON"]
-                        new_game.send_board(random.choice(rands))
 
                    elif data.type =="REFRESH":
                         conn.send(pickle.dumps(massage("CONNECTED PLAYERS",connected)))
@@ -203,12 +229,7 @@ new_game = None
 try:
     while running:
         conn,addr = s.accept()
-        connected.append((conn,addr))
         print("Connected to:", addr)
-        con_count +=1
-        if con_count == 2:
-             new_game = game(connected[0],connected[1])
-
         print(con_count)
         start_new_thread(type_access,(conn,))
 except KeyboardInterrupt:

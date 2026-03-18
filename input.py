@@ -88,3 +88,22 @@ class AuthPage:
         self.password.draw(screen, self.font)
         self.login_btn.draw(screen, self.font)
         self.register_btn.draw(screen, self.font)
+
+class challenge_box():
+    def __init__(self,screen,x,y,connected_player,challenged = False):
+        #connected_players =(name,clint_conn)
+        #if you press the button it sends the server the name so it gets the client and send a challenge
+        self.x = x
+        self.y = y
+        self.name = connected_player
+        self.screen = screen
+        self.challenged = challenged
+        self.font= pygame.font.SysFont("consolas", 24)
+        self.game_id = None
+        if not challenged:
+            self.challenge_button = Button("challenge",self.x+300,self.y-19)
+        else:
+            self.challenge_button = Button("accept",self.x+300,self.y-19)
+    def draw_challenge_box(self):
+        draw_text(self.screen,self.font,f"{self.name}","white",self.x,self.y)
+        self.challenge_button.draw(self.screen,self.font)

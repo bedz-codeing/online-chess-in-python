@@ -4,7 +4,7 @@ import pickle
 from pieces import *
 from massage import massage
 from _thread import *
-from input import AuthPage
+from input import *
 # create the screen
 WIDTH = 800
 HIGHT = 1000
@@ -117,11 +117,23 @@ def handle_incoming_msgs(n):
                 print(msg.content)
         if msg.type =="ACCEPTED":
             print("CONNECTED")
+            global logging_in
+            logging_in = False
+            
+        if msg.type == "LIST OF PLAYER":
+            global players
+            players = msg.content
+            menu_page.init_boxes()
+        if msg.type =="GAME?":
+            print(msg.content)
+
+            menu_page.update_for_challenge(msg.sender,msg.content)
 board = n.board
 #load_pieces(board)
 valid_moves = []
 undo = Button("undo_move",400,0)
 selected_piece = None
+players = []
 class game_screen():
     def __init__(self,board):
         self.valid_moves = []
@@ -171,13 +183,41 @@ class game_screen():
         undo.draw()
         if self.valid_moves:
             draw_valid_moves(self.valid_moves)
-class login():
+class menu():
     def __init__(self):
-        self.test = Button("test",200,200)
-        
+         self.font = pygame.font.SysFont("consolas", 18)
+         self.boxes = []
+    def init_boxes(self):
+        global players
+        print(players)
+        if players:
+            for index,i in enumerate(players):
+               self.boxes.append(challenge_box(screen,200,100+index*100,f"{i}"))
+    def draw_menu(self):
+        for i in self.boxes:
+            i.draw_challenge_box()
+    def check_button(self):
+        for i in self.boxes:
+             checking = i.challenge_button.is_clicked()
+             if checking:
+                 if i.challenged:
+                     n.send_only(massage("ACCEPTED",i.game_id))
+                 else:
+                    print(username)
+                    n.send_only(massage("GAME?",f"{i.name}",sender=username))
+
+    def update_for_challenge(self,opp_name,game_id):
+        if self.boxes:
+            pass
+        else:
+            new_challenge_box = challenge_box(screen,200,200,opp_name,True)
+            new_challenge_box.game_id = game_id
+            self.boxes.append(new_challenge_box)
 game = game_screen(board)
 game_started = False
-menu_page = AuthPage(200,200)
+logging_in = True
+logging_page = AuthPage(200,200)
+menu_page = menu()
 start_new_thread(n.listen,())
 action = "LOGIN"
 while run:
@@ -186,12 +226,14 @@ while run:
     handle_incoming_msgs(n)
     if game_started:
         game.draw()
+    elif logging_in:
+        logging_page.draw(screen)
     else:
-        menu_page.draw(screen)
+        menu_page.draw_menu()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-        result = menu_page.handle_events(event)
+        result = logging_page.handle_events(event)
         if result:
             action, username, password = result
             print(action, username, password)
@@ -200,6 +242,7 @@ while run:
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos_unfiltered = pygame.mouse.get_pos()
             mouse_pos = (mouse_pos_unfiltered[0]//square_size,(mouse_pos_unfiltered[1]-100)//square_size)
+            menu_page.check_button()
             if game_started:
                 game.check_undo_button()
                 game.handle_game_click()
