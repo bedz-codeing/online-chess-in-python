@@ -60,7 +60,6 @@ class piece():
                               if temp_piece.color != self.color:
                                    attacking_square = temp_piece.check_valid(piece_list)[0]
                                    kings_pos = self.get_king_pos()
-                                   print("the white king ",kings_pos)
                                    if kings_pos in attacking_square:
                                              valid_moves.remove(move)
                                              illegal_move = True

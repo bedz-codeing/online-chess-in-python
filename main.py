@@ -80,6 +80,15 @@ class network():
         while True:
              msg = self.clint.recv(2048*9)
              self.incoming_msg.append(pickle.loads(msg))
+
+    def get_reply(self,expected):
+        if self.incoming_msg:
+            try:
+               for i in self.incoming_msg:
+                   if i.type == expected:
+                       return i
+            except:
+                return None
 n = network()
 def draw_board():
    for row in range(1,9):
@@ -112,27 +121,54 @@ def handle_incoming_msgs(n):
         if msg.type == "BOARD":
              print(msg.content)
 
-        if msg.type == "CONNECTED PLAYERS":
+        elif msg.type == "CONNECTED PLAYERS":
                 print(msg.content)
-        if msg.type =="ACCEPTED":
+        elif msg.type =="ACCEPTED":
             print("CONNECTED")
             global logging_in
             logging_in = False
             
-        if msg.type == "LIST OF PLAYER":
+        elif msg.type == "LIST OF PLAYER":
             global players
             players = msg.content
             menu_page.init_boxes()
-        if msg.type =="GAME?":
+        elif msg.type =="GAME?":
             print(msg.content)
 
             menu_page.update_for_challenge(msg.sender,msg.content)
 
-        if msg.type == "GAME_STARTED":
+        elif msg.type == "GAME_STARTED":
              n.board = msg.content[0]
              n.color = msg.content[1]
              global game_started
              game_started = True
+
+        elif msg.type == "VALID_SEND":
+            #the msg content is (valid_moves,selected_piece)
+            if game:
+
+                game.valid_moves = msg.content[0]
+                game.selected_piece = msg.content[1]
+                draw_valid_moves( game.valid_moves)
+
+        elif msg.type == "MADE_MOVE":
+            reply = msg
+            print(reply)
+            print("move should have been made")
+            game.board = reply.content
+            game.valid_moves = []
+            game.selected_piece = None
+        elif msg.type == "PLAYER_NAMES":
+            for name in msg.content:
+                print(name)
+                print(username)
+                if name == username:
+                    font = pygame.font.SysFont("consolas", 18)
+                    draw_text(f"{name}",font,"white",500,500)
+                else:
+                    font = pygame.font.SysFont("consolas", 18)
+                    draw_text(f"{name}",font,"white",100,0)
+
 #load_pieces(board)
 valid_moves = []
 undo = Button("undo_move",400,0)
@@ -146,25 +182,24 @@ class game_screen():
     def handle_game_click(self):
             if self.board:
                 if mouse_pos[0] in range(8) and mouse_pos[1] in range(8):
-                    print(mouse_pos)
+                    print(self.valid_moves)
                     if mouse_pos in self.valid_moves:
+                        print("first phase")
                         msg = massage("MAKE_MOVE",(mouse_pos,self.selected_piece))
-                        reply = n.send(msg)
-                        if reply.type == "MADE_MOVE":
-                            print("move should have been made")
-                            self.board = reply.content
-                            self.valid_moves = []
-                            self.selected_piece = None
+                        n.send_only(msg)
                     elif self.board[mouse_pos[0]][ mouse_pos[1]] != "":
                         Piece =  self.board[mouse_pos[0]][ mouse_pos[1]]
+                        print(n.color)
                         if Piece.color == n.color:
                             msg = massage("VALID_GET",mouse_pos)
-                            reply = n.send(msg)
-                            if reply.type == "VALID_SEND":
-                                print(reply.content)
-                                self.valid_moves = reply.content
-                                draw_valid_moves(reply.content)
-                                self.selected_piece = mouse_pos
+                            n.send_only(msg)
+                            #reply = n.get_reply("VALID_SEND")
+                            #print("REPLAYYYYYYYYY",reply)
+                            #if reply:
+                                    #print(reply.content)
+                                    #self.valid_moves = reply.content
+                                    #draw_valid_moves(reply.content)
+                                    #self.selected_piece = mouse_pos
                     else:
                         self.valid_moves = []
                         self.selected_piece = None
@@ -222,7 +257,7 @@ class menu():
 game =None
 game_started = False
 logging_in = True
-logging_page = AuthPage(200,200)
+logging_page = AuthPage(300,300)
 menu_page = menu()
 start_new_thread(n.listen,())
 action = "LOGIN"
