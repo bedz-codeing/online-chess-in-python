@@ -190,15 +190,29 @@ def handle_messages(conn,name):
 
     conn.close()
 def clear_pending_challenges(name):
-     pending_challenges_list = connected[name]["challenges_ids"]
-     for id in pending_challenges_list:
-          del pending_challenges[id]
+     ids = list(connected[name]["challenges_ids"]) 
+     for id in ids:
+          try:
+               pending_challenges.pop(id, None)
+               print("deletion complelete")
+          except Exception as e:
+              print(f"the name {name}, the id {id}, the ids {connected[name]['challenges_ids']}, the exp {e}")
+     connected[name]["challenges_ids"].clear()
 def cleanup_player(name):
-          #still not done 
+          if name not in connected:
+               return
           player = connected[name]
           if player["state"] == "lobby":
               clear_pending_challenges(name)
               del connected[name]
+          elif player["state"] =="in game":
+               clear_pending_challenges(name)
+               game = player["game"]
+               if player["client"] in game.clients:
+                    game.clients.remove(player["client"])
+               if name in game.player_names:
+                    game.player_names.remove(name)
+               del connected[name]
               
 def handle_menu(conn,name):
      connected_p = list(connected.keys())
