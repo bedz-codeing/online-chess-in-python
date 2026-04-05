@@ -88,28 +88,39 @@ def send_play_request(client,opponent,opp_name,sender):
           "sender": {"client":client,"name":sender}
      }
      print(f"THE SENDER {sender}")
+     connected[opp_name]["challenges_ids"].append(challenge_id)
      opponent.send(pickle.dumps(massage("GAME?",challenge_id,opp_name,sender)))
 def accept_request(id):
-     data =pending_challenges[id]
+     try:
+          data =pending_challenges[id]
+     except:
+          return None
      opp_client = data["opponent"]["client"]
      opp_name = data["opponent"]["name"]
-
      challenger_client = data["sender"]["client"]
      challenger_name =  data["sender"]["name"]
+     #this makes sure if somebody send a challenge but is now is already in a game to cancel the acceptance
+     print(f" all ops challenges {connected[opp_name]["challenges_ids"]}")
+     print(f" all sender challenges {connected[challenger_name]["challenges_ids"]}")
+     if connected[opp_name]["state"] != "in game" and  connected[challenger_name]["state"] != "in game" :
+          new_game = game((challenger_client,challenger_name),(opp_client,opp_name))
 
-     new_game = game((challenger_client,challenger_name),(opp_client,opp_name))
+          connected[challenger_name]["state"] = "in game" 
+          connected[opp_name]["state"] = "in game" 
 
-     connected[challenger_name]["state"] = "in game" 
-     connected[opp_name]["state"] = "in game" 
+          connected[challenger_name]["game"] = new_game
+          connected[opp_name]["game"] = new_game
 
-     connected[challenger_name]["game"] = new_game
-     connected[opp_name]["game"] = new_game
-
-     print(f"{challenger_client} challenges {opp_client} to a chess game !!!!")
-     del pending_challenges[id]
-     new_game.send_board()
-     return new_game
-
+          print(f"{challenger_client} challenges {opp_client} to a chess game !!!!")
+          del pending_challenges[id]
+          new_game.send_board()
+          return new_game
+     else:
+          if connected[opp_name]["challenges_ids"] !=[]:
+               clear_pending_challenges(opp_name)
+          if connected[challenger_name]["challenges_ids"] !=[]:
+               clear_pending_challenges(challenger_name)
+          return None
 def type_access(client):
      # the access data comes as the from n.send_only(massage(f"{action}",(username, password)))
      name = None
@@ -141,6 +152,7 @@ def verify_user(client,info):
            connected[name]["client"] = client
            connected[name]["state"] = "lobby"
            connected[name]["game"] = None
+           connected[name]["challenges_ids"] = []
            return name
         else:
               client.send(pickle.dumps(massage("INVALID",None)))
@@ -174,9 +186,20 @@ def handle_messages(conn,name):
                 elif connected[name]["state"] =="in game":
                      handle_threaded_game(conn, connected[name]["game"])
     except Exception as err:
-         print(f"the handle msg error is {err}")
+        cleanup_player(name)
 
     conn.close()
+def clear_pending_challenges(name):
+     pending_challenges_list = connected[name]["challenges_ids"]
+     for id in pending_challenges_list:
+          del pending_challenges[id]
+def cleanup_player(name):
+          #still not done 
+          player = connected[name]
+          if player["state"] == "lobby":
+              clear_pending_challenges(name)
+              del connected[name]
+              
 def handle_menu(conn,name):
      connected_p = list(connected.keys())
      connected_p.remove(name)
@@ -191,8 +214,6 @@ def handle_menu(conn,name):
         new_game= accept_request(data.content)
         print(f" GAMMMMMMMMMMMME{new_game}")
        
-                
-
 
 def handle_threaded_game(conn,game):
 
@@ -244,10 +265,6 @@ def handle_threaded_game(conn,game):
     except Exception as e:
             print(f"the exeption = {e}")
             print("Lost connection")
-            for n in connected:
-                 if connected[n] == conn:
-                      print(n)
-                      del connected[n]
             raise Exception
 
 running = True

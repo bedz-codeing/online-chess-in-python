@@ -248,9 +248,17 @@ class menu():
                     n.send_only(massage("GAME?",f"{i.name}",sender=username))
 
     def update_for_challenge(self,opp_name,game_id):
+        buffer_store_box = None
         if self.boxes:
-            pass
-        else:
+            for box in self.boxes:
+                if box.name == opp_name:
+                    box.challenged = True
+                    box.game_id = game_id
+                    buffer_store_box = box
+                    break
+
+               
+        if not buffer_store_box:
             new_challenge_box = challenge_box(screen,200,200,opp_name,True)
             new_challenge_box.game_id = game_id
             self.boxes.append(new_challenge_box)
@@ -292,5 +300,4 @@ while run:
                 game.handle_game_click()
 
     pygame.display.flip()
-
 pygame.quit()
