@@ -98,18 +98,79 @@ class piece():
           piece.white_king_pos = prev_state["white_king_pos"]
           board[to_pos[0]][to_pos[1]] = undo_square
           board[form_pos[0]][form_pos[1]] =moved_piece
-class pawn(piece):
-     def __init__(self,color,x,y,directory):
-          self.first_move_done = False
-          self.color = color
-          move_directions = [(0,-1),(1,-1),(-1,-1)] if self.color == "white" else [(0,1),(1,1),(-1,1)]
-          super().__init__(color,x,y,directory,"pawn",move_directions)
+
 
 class queen(piece):
      def __init__(self,color,x,y,directory):
           move_directions = [(1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1)]
           super().__init__(color,x,y,directory,"queen",move_directions)
-     
+
+class rook(piece):
+     def __init__(self,color,x,y,directory):
+          move_directions = [(1,0),(-1,0),(0,1),(0,-1)]
+          super().__init__(color,x,y,directory,"rook",move_directions)
+
+class bishop(piece):
+     def __init__(self,color,x,y,directory):
+          move_directions = [(1,1),(1,-1),(-1,1),(-1,-1)]
+          super().__init__(color,x,y,directory,"bishop",move_directions)
+
+class knight(piece):
+     def __init__(self,color,x,y,directory):
+          super().__init__(color,x,y,directory,"knight")
+     def check_valid(self,piece_list):
+          self.valid_moves = []
+          self.capture = []
+          self.move_directions = [(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
+          for i in self.move_directions:
+               for square in range(1,2):
+                    nx = self.x + i[0]*square
+                    ny = self.y + i[1]*square
+                    if nx<0 or nx>7 or ny<0 or ny>7:
+                         break
+                    if piece_list[nx][ny] != "":
+                        checked = piece_list[nx][ny].color
+                        if checked != self.color:
+                           self.capture.append((nx,ny))
+                           self.valid_moves.append((nx,ny))
+                           break
+                        elif checked == self.color:
+                            break
+                    else:
+                            self.valid_moves.append((nx,ny ))
+          return self.valid_moves,self.capture
+
+class pawn(piece):
+     def __init__(self,color,x,y,directory):
+          self.first_move_done = False
+          super().__init__(color,x,y,directory,"pawn")
+
+     def check_valid(self,piece_list):
+          self.valid_moves = []
+          self.capture = []
+          move_directions = [(0,-1),(1,-1),(-1,-1)] if self.color == "white" else [(0,1),(1,1),(-1,1)]
+          if  not self.first_move_done:
+                moves = 3
+          else:
+                moves = 2
+          for i in move_directions:
+               for square in range(1,moves):
+                    nx = self.x + i[0]*square
+                    ny = self.y + i[1]*square
+                    if nx<0 or nx>7 or ny<1 or ny>=9:
+                         break
+                    if(nx,ny)in piece_list:
+                        checked = piece_list[nx][ny].color
+                        if( checked != self.color) and (i == (1,1) or i == (-1,1) or i == (1,-1) or i == (-1,-1)) and square == 1:
+                            self.capture.append((nx,ny))
+                            self.valid_moves.append((nx,ny))
+                            break
+                        elif checked == self.color:
+                            break
+                    if (nx,ny) not in piece_list and i == (0,1) or i == (0,-1):
+                            self.valid_moves.append((nx,ny ))
+          return self.valid_moves,self.capture
+
 class king(piece):
      def __init__(self,color,x,y,directory):
           self.check = False

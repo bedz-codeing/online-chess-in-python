@@ -35,7 +35,7 @@ class game():
           self.turn = "white"
           self.board_class = Board()
           self.board =  self.board_class.board
-          self.board_class.load_FEN("4k3/8/8/8/8/8/8/4KQ1q")
+          self.board_class.load_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
           self.player_2_color = {p1[0]:"white",p2[0]:"black"}
           self.player_names = [p1[1],p2[1]]
      def send_board(self):
@@ -81,6 +81,8 @@ def Undo_move_request(last_move,last_played_piece,board):
       
 def send_play_request(client,opponent,opp_name,sender):
      #this func makes a temp challenge in a dict and sends the id to the player so if he accepts/decline i can find it
+     #TODO if somebody in game don't send them invite
+     #FIXED A BUG where the ids where stored for the opp not the sender
      challenge_id = str(uuid.uuid4())[:5]
      print(challenge_id)
      pending_challenges[challenge_id] = {
@@ -88,7 +90,7 @@ def send_play_request(client,opponent,opp_name,sender):
           "sender": {"client":client,"name":sender}
      }
      print(f"THE SENDER {sender}")
-     connected[opp_name]["challenges_ids"].append(challenge_id)
+     connected[sender]["challenges_ids"].append(challenge_id)
      opponent.send(pickle.dumps(massage("GAME?",challenge_id,opp_name,sender)))
 def accept_request(id):
      try:
@@ -191,6 +193,7 @@ def handle_messages(conn,name):
     conn.close()
 def clear_pending_challenges(name):
      ids = list(connected[name]["challenges_ids"]) 
+     print(f"clearing pending challenges for {name} with ids {ids}")
      for id in ids:
           try:
                pending_challenges.pop(id, None)
@@ -199,9 +202,11 @@ def clear_pending_challenges(name):
               print(f"the name {name}, the id {id}, the ids {connected[name]['challenges_ids']}, the exp {e}")
      connected[name]["challenges_ids"].clear()
 def cleanup_player(name):
+          print(f"cleaning up {name}")
           if name not in connected:
                return
           player = connected[name]
+          print(f"the player {name} is in state {player['state']}")
           if player["state"] == "lobby":
               clear_pending_challenges(name)
               del connected[name]
@@ -271,10 +276,10 @@ def handle_threaded_game(conn,game):
                    else:
                          msg = massage("UNKNOWN MASSAGE",None)
                          conn.send(pickle.dumps(msg))
-                except Exception as e:
+                except Exception as ex:
                     msg = massage("UNKNOWN ERROR",None)
                     conn.send(pickle.dumps(msg))
-                    print("the exp",e)
+                    print("the exp",ex)
                 #conn.send(pickle.dumps(board))
     except Exception as e:
             print(f"the exeption = {e}")

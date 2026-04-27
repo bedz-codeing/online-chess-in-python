@@ -91,8 +91,6 @@ class AuthPage:
 
 class challenge_box():
     def __init__(self,screen,x,y,connected_player,challenged = False):
-        #connected_players =(name,clint_conn)
-        #if you press the button it sends the server the name so it gets the client and send a challenge
         self.x = x
         self.y = y
         self.name = connected_player

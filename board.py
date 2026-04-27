@@ -16,12 +16,13 @@ class Board():
         for i in fen :
             #what is the diff here if i use ifs insted of elifs
             if  i == "r":
-                    pass
+                   self.board[column][row]=rook("black",column,row,"chess pieces/black_rook.png")
+                   column+=1 
             elif  i == "b":
-                    pass
+                    self.board[column][row]=bishop("black",column,row,"chess pieces/black_bishop.png")
                     column+=1 
             elif  i == "n":
-                    pass
+                    self.board[column][row]=knight("black",column,row,"chess pieces/black_knight.png")
                     column+=1
             elif  i == "q":
                     self.board[column][row] = queen("black",column,row,"chess pieces/black_queen.png")
@@ -38,13 +39,13 @@ class Board():
             elif i.isnumeric():
                 column += int(i)
             elif  i == "R":
-                    pass
+                    self.board[column][row]=rook("white",column,row,"chess pieces/white_rook.png")
                     column+=1
             elif  i == "B":
-                    pass
+                    self.board[column][row]=bishop("white",column,row,"chess pieces/white_bishop.png")
                     column+=1
             elif  i == "N":
-                    pass
+                    self.board[column][row]=knight("white",column,row,"chess pieces/white_knight.png")
                     column+=1
             elif  i == "Q":
                     self.board[column][row] = queen("white",column,row,"chess pieces/white_qween.png")
@@ -53,7 +54,5 @@ class Board():
                     self.board[column][row] = king("white",column,row,"chess pieces/white_king.png")
                     column+=1
             elif  i == "P":
-                    white_pawn =pawn("white",column,row,"chess pieces/white_pawn.png")
-                    white_pawn.load_image()
-                    white_pawn.draw_piece()
-                    column+=1     
+                        self.board[column][row]=pawn("white",column,row,"chess pieces/white_pawn.png")
+                        column+=1
