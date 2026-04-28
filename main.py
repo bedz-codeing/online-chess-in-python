@@ -22,7 +22,7 @@ green_square_color = pygame.Color("#69923e")
 white_square_color = pygame.Color("#eeeed2")
 image_cache = {}
 playable_pieces = []
-
+loaded_pieces = False
 def draw_text(text,font,color,x,y):
     surf_text = font.render(text,True,color)
     screen.blit(surf_text, (x,y))
@@ -117,10 +117,9 @@ def draw_valid_moves(valid_moves):
 def handle_incoming_msgs(n):
     if n.incoming_msg:
         msg = n.incoming_msg.pop()
-        print(f"the massge {msg.type}")
+        print("GOT A MSG",msg.type)
         if msg.type == "BOARD":
              print(msg.content)
-
         elif msg.type == "CONNECTED PLAYERS":
                 print(msg.content)
         elif msg.type =="ACCEPTED":
@@ -146,7 +145,6 @@ def handle_incoming_msgs(n):
         elif msg.type == "VALID_SEND":
             #the msg content is (valid_moves,selected_piece)
             if game:
-
                 game.valid_moves = msg.content[0]
                 game.selected_piece = msg.content[1]
                 draw_valid_moves( game.valid_moves)
@@ -219,9 +217,11 @@ class game_screen():
                     pygame.draw.rect(screen,white_square_color,(Colum*square_size,row*square_size,square_size,square_size))
     def draw(self):
         self.draw_board()
-        load_pieces(self.board)
+        global loaded_pieces
+        if not loaded_pieces:
+            load_pieces(self.board)
+            loaded_pieces = True
         draw_pieces(self.board)
-        undo.draw()
         if self.valid_moves:
             draw_valid_moves(self.valid_moves)
 class menu():

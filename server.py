@@ -243,7 +243,6 @@ def handle_threaded_game(conn,game):
             print(data.type)
             if not data:
                 print("Disconnected")
-                
             else:
                 try:
                    if data.type == "VALID_GET":
@@ -253,12 +252,34 @@ def handle_threaded_game(conn,game):
                          conn.send(pickle.dumps(msg))
                         
                    elif data.type == "MAKE_MOVE":
-                       
                        last_move,last_played_piece = Make_move_request(data,game)
                        if last_move == None or last_played_piece == None:
                             msg = massage("not your turn",None)
                        else:
                          msg = massage("MADE_MOVE",game.board)
+                         # this code is for checkmate/check detection after a move is made
+                         player_color = last_played_piece.color
+                         if player_color == "white":
+                              opp_king = last_played_piece.black_king_pos
+                              #this func check if this square is attacked by the piece that is not your color thats why i putted black
+                              opp_is_checked = is_square_attacked(game.board,opp_king,"black")
+                              if opp_is_checked:
+                                   game.send_info(massage("CHECK ON THE BLACK KING ",opp_is_checked))
+                                   #this detects if the king is checkmated by checking if all the pieces of the opponent have no valid moves and the king is in check
+                                   is_checked = detect_checkmate(game.board,"black")
+                                   if is_checked:
+                                        game.send_info(massage("BLACK KING IS CHECKMATED",None))
+
+                         elif player_color == "black":
+                              opp_king = last_played_piece.white_king_pos
+                              #same as the black one but for white
+                              opp_is_checked = is_square_attacked(game.board,opp_king,"white")
+                              if opp_is_checked: 
+                                   game.send_info(massage("CHECK ON THE WHITE KING ",opp_is_checked))
+                                   is_checked = detect_checkmate(game.board,"white")
+                                   if is_checked:
+                                        game.send_info(massage("WHITE KING IS CHECKMATED",None))
+
                        game.send_info(msg)
 
                    elif data.type =="UNDO_MOVE":

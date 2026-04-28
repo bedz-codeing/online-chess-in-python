@@ -45,8 +45,7 @@ class piece():
                             self.valid_moves.append((nx,ny ))
           return self.valid_moves,self.capture
      def check_legal_moves(self,piece_list,current_pos):
-          valid_moves = self.check_valid(piece_list)[0]
-          capture_moves= self.check_valid(piece_list)[1]
+          valid_moves,capture_moves= self.check_valid(piece_list)
           temp_valid_moves = valid_moves.copy()
           for move in temp_valid_moves:
                illegal_move = False
@@ -157,9 +156,9 @@ class pawn(piece):
                for square in range(1,moves):
                     nx = self.x + i[0]*square
                     ny = self.y + i[1]*square
-                    if nx<0 or nx>7 or ny<1 or ny>=9:
+                    if nx < 0 or nx > 7 or ny < 0 or ny > 7:
                          break
-                    if(nx,ny)in piece_list:
+                    if piece_list[nx][ny] != "":
                         checked = piece_list[nx][ny].color
                         if( checked != self.color) and (i == (1,1) or i == (-1,1) or i == (1,-1) or i == (-1,-1)) and square == 1:
                             self.capture.append((nx,ny))
@@ -167,7 +166,7 @@ class pawn(piece):
                             break
                         elif checked == self.color:
                             break
-                    if (nx,ny) not in piece_list and i == (0,1) or i == (0,-1):
+                    if piece_list[nx][ny] == "" and i == (0,1) or i == (0,-1):
                             self.valid_moves.append((nx,ny ))
           return self.valid_moves,self.capture
 
@@ -201,3 +200,23 @@ class king(piece):
                          else:
                                  self.valid_moves.append((nx,ny ))
                return self.valid_moves,self.capture
+     
+def is_square_attacked(piece_list,position,color):
+          for row in piece_list:
+                    for square in row:
+                         if square != "" :
+                              temp_piece = square
+                              if temp_piece.color != color:
+                                   attacking_square = temp_piece.check_valid(piece_list)[0]
+                                   if position in attacking_square:
+                                             return True
+          return False
+
+def detect_checkmate(piece_list,color):
+          for row in piece_list:
+                    for square in row:
+                         if square != "" and square.color == color:
+                              valid_moves = square.check_legal_moves(piece_list,square.get_position())[0]
+                              if valid_moves != []:
+                                   return False
+          return True
