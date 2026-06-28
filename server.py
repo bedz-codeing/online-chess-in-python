@@ -6,6 +6,7 @@ from massage import massage
 import uuid
 from board import Board
 import sqlite3
+from server_handling import *
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ip = socket.gethostbyname(socket.gethostname())
 port = 5555
@@ -44,41 +45,25 @@ class game():
                c.send(pickle.dumps(massage("GAME_STARTED",(self.board,self.player_2_color[c]))))
                c.send(pickle.dumps(massage("PLAYER_NAMES",self.player_names)))
      def send_info(self,msg):
+        print(f"sending info to {self.player_names} with msg {msg.type}")
         for c in self.clients:
              c.send(pickle.dumps(msg))
-def Valid_moves_request(data,board):
-        piece_pos = data.content
-        piece = board[piece_pos[0]][piece_pos[1]]
-        valid_moves,capture=piece.check_legal_moves(board,piece_pos)
-        #returning the content as a tuple so i can update valid moves AND selected piece
-        return (valid_moves,piece_pos)
-def Make_move_request(data,game):
-        print(game.turn)
-     # the content is a tuple of 0:mouse_pos or the to_pos and the 1: the piece 
-        piece_pos = data.content[1]
-        mouse_pos = data.content[0]
-        board = game.board
-        piece = board[piece_pos[0]][piece_pos[1]]
-        print(piece.color)
-        if piece.color == game.turn:
-          last_move = piece.make_move(board,piece_pos,mouse_pos)
-          last_played_piece = piece
-          if piece.color == "white":
-               print("now is black's turn")
-               game.turn = "black"
 
-          else:
-               print("the turns should turn")
-               game.turn = "white"
-               print(game.turn)
-          return last_move,last_played_piece 
-        else:
-             return None,None
-def Undo_move_request(last_move,last_played_piece,board):
-        print("not here")
-        last_played_piece.undo_move(board,last_move)
-        return None,None
-      
+     
+
+def type_access(client):
+     # the access data comes as the from n.send_only(massage(f"{action}",(username, password)))
+     name = None
+     while name == None:
+         msg =pickle.loads(client.recv(2048))
+         print(msg.type)
+         if msg.type == "LOGIN":
+             name= verify_user(client,msg.content)
+         elif msg.type == "CREATE":
+              name=crating_account(client,msg.content)
+
+     handle_messages(client,name)
+#THOSE ARE AUTH ENTICATION FUNCTIONS PUT THEM IN auth.py
 def send_play_request(client,opponent,opp_name,sender):
      #this func makes a temp challenge in a dict and sends the id to the player so if he accepts/decline i can find it
      #TODO if somebody in game don't send them invite
@@ -123,18 +108,6 @@ def accept_request(id):
           if connected[challenger_name]["challenges_ids"] !=[]:
                clear_pending_challenges(challenger_name)
           return None
-def type_access(client):
-     # the access data comes as the from n.send_only(massage(f"{action}",(username, password)))
-     name = None
-     while name == None:
-         msg =pickle.loads(client.recv(2048))
-         print(msg.type)
-         if msg.type == "LOGIN":
-             name= verify_user(client,msg.content)
-         elif msg.type == "CREATE":
-              name=crating_account(client,msg.content)
-
-     handle_messages(client,name)
 def verify_user(client,info):
      conn = sqlite3.connect("DATABASE.db")
      cursor = conn.cursor()
@@ -180,6 +153,11 @@ def crating_account(client,info):
                
     else:
             client.send("TAKEN".encode())
+
+
+
+# THOSE ARE THE MAIN FUNCTIONS THAT HANDLE THE GAME AND MENU STATES OF THE PLAYER PUT THEM IN handle_messages.py
+      
 def handle_messages(conn,name):
     try:
          while True:
@@ -191,6 +169,7 @@ def handle_messages(conn,name):
         cleanup_player(name)
 
     conn.close()
+#THOSE HANDLE THE LOBBY LOGIC 
 def clear_pending_challenges(name):
      ids = list(connected[name]["challenges_ids"]) 
      print(f"clearing pending challenges for {name} with ids {ids}")
@@ -232,80 +211,6 @@ def handle_menu(conn,name):
      elif data.type == "ACCEPTED_CHALLENGE":
         new_game= accept_request(data.content)
         print(f" GAMMMMMMMMMMMME{new_game}")
-       
-
-def handle_threaded_game(conn,game):
-
-    last_played_piece = None
-    last_move = None
-    try:
-            data =pickle.loads(conn.recv(2048))
-            print(data.type)
-            if not data:
-                print("Disconnected")
-            else:
-                try:
-                   if data.type == "VALID_GET":
-                         valid_moves = Valid_moves_request(data, game.board)
-                         msg = massage("VALID_SEND",valid_moves)
-                         print(msg.type)
-                         conn.send(pickle.dumps(msg))
-                        
-                   elif data.type == "MAKE_MOVE":
-                       last_move,last_played_piece = Make_move_request(data,game)
-                       if last_move == None or last_played_piece == None:
-                            msg = massage("not your turn",None)
-                       else:
-                         msg = massage("MADE_MOVE",game.board)
-                         # this code is for checkmate/check detection after a move is made
-                         player_color = last_played_piece.color
-                         if player_color == "white":
-                              opp_king = last_played_piece.black_king_pos
-                              #this func check if this square is attacked by the piece that is not your color thats why i putted black
-                              opp_is_checked = is_square_attacked(game.board,opp_king,"black")
-                              if opp_is_checked:
-                                   game.send_info(massage("CHECK ON THE BLACK KING ",opp_is_checked))
-                                   #this detects if the king is checkmated by checking if all the pieces of the opponent have no valid moves and the king is in check
-                                   is_checked = detect_checkmate(game.board,"black")
-                                   if is_checked:
-                                        game.send_info(massage("BLACK KING IS CHECKMATED",None))
-
-                         elif player_color == "black":
-                              opp_king = last_played_piece.white_king_pos
-                              #same as the black one but for white
-                              opp_is_checked = is_square_attacked(game.board,opp_king,"white")
-                              if opp_is_checked: 
-                                   game.send_info(massage("CHECK ON THE WHITE KING ",opp_is_checked))
-                                   is_checked = detect_checkmate(game.board,"white")
-                                   if is_checked:
-                                        game.send_info(massage("WHITE KING IS CHECKMATED",None))
-
-                       game.send_info(msg)
-
-                   elif data.type =="UNDO_MOVE":
-                           if last_played_piece and last_move:
-                                last_played_piece,last_move = Undo_move_request(last_move,last_played_piece,game.board)
-                                msg = massage("UNDID_MOVE",game.board)
-                                conn.send(pickle.dumps(msg))
-
-                           else:
-                                 msg = massage("nothing to undo",None)
-                                 conn.send(pickle.dumps(msg))
-
-                   elif data.type =="REFRESH":
-                        conn.send(pickle.dumps(massage("CONNECTED PLAYERS",connected)))
-                   else:
-                         msg = massage("UNKNOWN MASSAGE",None)
-                         conn.send(pickle.dumps(msg))
-                except Exception as ex:
-                    msg = massage("UNKNOWN ERROR",None)
-                    conn.send(pickle.dumps(msg))
-                    print("the exp",ex)
-                #conn.send(pickle.dumps(board))
-    except Exception as e:
-            print(f"the exeption = {e}")
-            print("Lost connection")
-            raise Exception
 
 running = True
 con_count = 0
