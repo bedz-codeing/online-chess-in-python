@@ -7,6 +7,7 @@ import uuid
 from board import Board
 import sqlite3
 from server_handling import *
+import globals
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ip = socket.gethostbyname(socket.gethostname())
 port = 5555
@@ -27,8 +28,8 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 
 
-connected = {}
-pending_challenges = {}
+connected = globals.connected
+pending_challenges = globals.pending_challenges
 class game():
      def __init__(self,p1,p2):
           #p1 and p2 are a tuple ex:(opp_client,opp_name) 
@@ -162,8 +163,10 @@ def handle_messages(conn,name):
     try:
          while True:
                 if connected[name]["state"] == "lobby":
+                     print(f"the player {name} is in the lobby")
                      handle_menu(conn,name)
                 elif connected[name]["state"] =="in game":
+                     print(f"the player {name} is in a game")
                      handle_threaded_game(conn, connected[name]["game"])
     except Exception as err:
         cleanup_player(name)

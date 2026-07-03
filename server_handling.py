@@ -4,6 +4,8 @@ import pickle
 from pieces import *
 from massage import massage
 from board import Board
+import globals
+
 def Valid_moves_request(data,board):
         piece_pos = data.content
         piece = board[piece_pos[0]][piece_pos[1]]
@@ -49,28 +51,37 @@ def handle_move_request(data,game):
 
 def check_for_checks(game,last_played_piece,color):
       #this code is for checkmate/check detection after a move is made
-      if color == "black":
-           opp_king_poss = last_played_piece.white_king_pos
-           #this func check if this square is attacked by the piece that is not your color thats why i putted white
-           opp_is_checked = is_square_attacked(game.board,opp_king_poss,"white")
-           print(f"the black king is checked {opp_is_checked}")
-           if opp_is_checked:
-                game.send_info(massage("CHECK ON THE WHITE KING ",opp_is_checked))
-                #this detects if the king is checkmated by checking if all the pieces of the opponent have no valid moves and the king is in check
-                is_checked = detect_checkmate(game.board,"white")
-                if is_checked:
-                     game.send_info(massage("WHITE KING IS CHECKMATED",None))
-      elif color == "white":
-           opp_king_poss = last_played_piece.black_king_pos
-           #this func check if this square is attacked by the piece that is not your color thats why i putted black
-           opp_is_checked = is_square_attacked(game.board,opp_king_poss,"black")
-           print(f"the white king is checked {opp_is_checked}")
-           if opp_is_checked:
-                game.send_info(massage("CHECK ON THE BLACK KING ",opp_is_checked))
-                #this detects if the king is checkmated by checking if all the pieces of the opponent have no valid moves and the king is in check
-                is_checked = detect_checkmate(game.board,"black")
-                if is_checked:
-                     game.send_info(massage("BLACK KING IS CHECKMATED",None))
+      opp_color = "white" if color == "black" else "black"
+      opp_king_poss = last_played_piece.white_king_pos if color == "black" else last_played_piece.black_king_pos
+      #this func check if this square is attacked by the piece that is not your color thats why i putted white
+      opp_is_checked = is_square_attacked(game.board,opp_king_poss,opp_color)
+      print(f"the {color} king is checked {opp_is_checked}")
+      if opp_is_checked:
+           game.send_info(massage(f"CHECK ON THE {color.upper()} KING ",opp_is_checked))
+           return True
+      return False
+
+def detect_game_end(game,color):
+       opp_color = "white" if color == "black" else "black"
+       is_checked = detect_checkmate(game.board,opp_color)
+       if is_checked:
+         return True
+       return False
+
+def ending_game(game):
+     game.send_info(massage("GAME_ENDED",None))
+     return_to_lobby(game.player_names[0])
+     return_to_lobby(game.player_names[1])
+
+def return_to_lobby(name):
+    """
+    Transition a player back to the lobby state after a game ends.
+    handle_messages will loop and call handle_menu, which sends LIST OF PLAYER
+    automatically — so we don't need to send it here.
+    """
+    globals.connected[name]["state"] = "lobby"
+    globals.connected[name]["game"] = None
+    globals.connected[name]["challenges_ids"] = []
 def handle_threaded_game(conn,game):
 
     last_played_piece = None
@@ -91,8 +102,11 @@ def handle_threaded_game(conn,game):
                    elif data.type == "MAKE_MOVE":
                         last_move,last_played_piece,msg = handle_move_request(data,game)
                         # this code is for checkmate/check detection after a move is made
-                        check_for_checks(game,last_played_piece,last_played_piece.color)
                         game.send_info(msg)
+                        if check_for_checks(game,last_played_piece,last_played_piece.color):
+                             print("the king is checked")
+                             if detect_game_end(game,last_played_piece.color):
+                                   ending_game(game)
 
                    elif data.type =="UNDO_MOVE":
                            if last_played_piece and last_move:
@@ -104,9 +118,13 @@ def handle_threaded_game(conn,game):
                                  msg = massage("nothing to undo",None)
                                  conn.send(pickle.dumps(msg))
 
-                   elif data.type =="REFRESH":
-                        #conn.send(pickle.dumps(massage("CONNECTED PLAYERS",connected)))
-                        pass
+                   elif data.type =="GAME_ENDED":
+            # Client acknowledged the game end. return_to_lobby was already called
+            # by whichever player's thread ran ending_game, so state is already
+            # "lobby". We just need to return so handle_messages can loop to
+            # handle_menu and send a fresh LIST OF PLAYER.
+                         print("client acknowledged GAME_ENDED — returning to lobby loop")
+                         return
                    else:
                          msg = massage("UNKNOWN MASSAGE",None)
                          conn.send(pickle.dumps(msg))

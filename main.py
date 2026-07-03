@@ -139,7 +139,7 @@ def handle_incoming_msgs(n):
         elif msg.type == "GAME_STARTED":
              n.board = msg.content[0]
              n.color = msg.content[1]
-             global game_started
+             global game_started,game
              game_started = True
 
         elif msg.type == "VALID_SEND":
@@ -153,9 +153,10 @@ def handle_incoming_msgs(n):
             reply = msg
             print(reply)
             print("move should have been made")
-            game.board = reply.content
-            game.valid_moves = []
-            game.selected_piece = None
+            if game:
+                game.board = msg.content
+                game.valid_moves = []
+                game.selected_piece = None
         elif msg.type == "PLAYER_NAMES":
             for name in msg.content:
                 print(name)
@@ -166,6 +167,16 @@ def handle_incoming_msgs(n):
                 else:
                     font = pygame.font.SysFont("consolas", 18)
                     draw_text(f"{name}",font,"white",100,0)
+        elif msg.type == "GAME_ENDED":
+            n.send_only(massage("GAME_ENDED", None))
+            print("GAME ENDED")
+            game_started = False
+            game = None
+            n.board = None
+            n.color = None
+            global loaded_pieces
+            loaded_pieces = False
+            
 
 #load_pieces(board)
 valid_moves = []
@@ -231,6 +242,7 @@ class menu():
     def init_boxes(self):
         global players
         print(players)
+        self.boxes = []
         if players:
             for index,i in enumerate(players):
                self.boxes.append(challenge_box(screen,200,100+index*100,f"{i}"))

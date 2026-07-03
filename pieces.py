@@ -213,6 +213,8 @@ def is_square_attacked(piece_list,position,color):
           return False
 
 def detect_checkmate(piece_list,color):
+          #THE COLOR HERE IS THE COLOR OF THE KING THAT IS BEING CHECKED
+          #this func checks if the king is checkmated by checking if all the pieces of the opponent have no valid moves and the king is in check
           for row in piece_list:
                     for square in row:
                          if square != "" and square.color == color:
