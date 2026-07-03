@@ -70,8 +70,11 @@ def detect_game_end(game,color):
 
 def ending_game(game):
      game.send_info(massage("GAME_ENDED",None))
-     return_to_lobby(game.player_names[0])
-     return_to_lobby(game.player_names[1])
+    
+     for name in game.player_names:
+          print(f"returning {name} to lobby")
+          return_to_lobby(name)
+
 
 def return_to_lobby(name):
     """
@@ -80,6 +83,7 @@ def return_to_lobby(name):
     automatically — so we don't need to send it here.
     """
     globals.connected[name]["state"] = "lobby"
+    print(f"returning {name} to lobby")
     globals.connected[name]["game"] = None
     globals.connected[name]["challenges_ids"] = []
 def handle_threaded_game(conn,game):
@@ -113,7 +117,6 @@ def handle_threaded_game(conn,game):
                                 last_played_piece,last_move = Undo_move_request(last_move,last_played_piece,game.board)
                                 msg = massage("UNDID_MOVE",game.board)
                                 conn.send(pickle.dumps(msg))
-
                            else:
                                  msg = massage("nothing to undo",None)
                                  conn.send(pickle.dumps(msg))
@@ -124,6 +127,7 @@ def handle_threaded_game(conn,game):
             # "lobby". We just need to return so handle_messages can loop to
             # handle_menu and send a fresh LIST OF PLAYER.
                          print("client acknowledged GAME_ENDED — returning to lobby loop")
+                         ending_game(game)
                          return
                    else:
                          msg = massage("UNKNOWN MASSAGE",None)

@@ -197,6 +197,9 @@ def cleanup_player(name):
                game = player["game"]
                if player["client"] in game.clients:
                     game.clients.remove(player["client"])
+                    # to tell the other player that the game has ended, we send a GAME_ENDED message to the remaining client
+                    if game.clients:
+                         game.send_info(massage("GAME_ENDED",None))
                if name in game.player_names:
                     game.player_names.remove(name)
                del connected[name]
